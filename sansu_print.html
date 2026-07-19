@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小学生向け さんすうプリント自動生成ツール</title>
+    <style>
+        /* ==========================================
+           1. 画面表示用の共通・基本スタイル
+           ========================================== */
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --success-color: #10b981;
+            --success-hover: #059669;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', Meiryo, sans-serif;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* 画面上部のコントロールパネル（スマホ対応） */
+        .controls {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-row label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .control-row select {
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1.5px solid #d1d5db;
+            background: #fff;
+            color: var(--text-color);
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .control-row select:focus {
+            border-color: var(--primary-color);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: var(--success-hover);
+        }
+
+        /* ワークシートデザイン */
+        .print-area {
+            background: #fff;
+            padding: 10px;
+        }
+
+        .print-header {
+            margin-bottom: 20px;
+            border-bottom: 2px dashed #9ca3af;
+            padding-bottom: 15px;
+        }
+
+        .print-header h1 {
+            font-size: 20px;
+            margin: 0 0 15px 0;
+            text-align: center;
+            color: #111827;
+            letter-spacing: 1px;
+        }
+
+        .name-box {
+            font-size: 16px;
+            text-align: right;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        /* 問題グリッド（スマホは2列で見やすく表示） */
+        .problems-grid {
+            display: flex;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .problem {
+            box-sizing: border-box;
+            width: 50%; /* スマホでは2列 */
+            font-size: 18px;
+            padding: 15px 5px;
+            font-family: 'SF Pro Text', -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px dotted #f3f4f6;
+        }
+
+        .q-num {
+            color: #6b7280;
+            font-size: 0.85em;
+            width: 38px;
+            display: inline-block;
+            text-align: right;
+            margin-right: 8px;
+        }
+
+        /* 回答記入用の正方形マス（十字リーダー付き） */
+        .answer-box {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            border: 1.5px solid #4b5563;
+            background-color: #fff;
+            margin-left: 10px;
+            position: relative;
+            box-sizing: border-box;
+            border-radius: 4px;
+        }
+
+        /* 十字の点線ガイド（鉛筆の書き方の目安用） */
+        .answer-box::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 0;
+            height: 100%;
+            border-left: 1px dashed #d1d5db;
+        }
+
+        .answer-box::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 0;
+            border-top: 1px dashed #d1d5db;
+        }
+
+        /* ==========================================
+           2. タブレット・PC・大画面向けのスタイル調整
+           ========================================== */
+        @media screen and (min-width: 650px) {
+            body {
+                padding: 20px;
+            }
+
+            .container {
+                padding: 30px;
+            }
+
+            .controls {
+                flex-direction: row;
+                align-items: flex-end;
+                justify-content: space-between;
+                gap: 20px;
+            }
+
+            .control-row {
+                flex: 1;
+            }
+
+            .btn-group {
+                flex-direction: row;
+                gap: 12px;
+                width: auto;
+            }
+
+            .btn {
+                width: auto;
+                padding: 12px 24px;
+                font-size: 15px;
+            }
+
+            .print-header h1 {
+                font-size: 26px;
+            }
+
+            .problem {
+                width: 33.33%; /* PC画面では3列 */
+                font-size: 22px;
+                padding: 18px 10px;
+            }
+
+            .answer-box {
+                width: 42px;
+                height: 42px;
+                margin-left: 12px;
+            }
+        }
+
+        /* ==========================================
+           3. 印刷・PDF出力用の超高精度設定（A4・3列・2枚固定）
+           ========================================== */
+        @media print {
+            /* コントロールパネルなどは印刷しない */
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .container {
+                box-shadow: none !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+
+            /* A4縦の設定と余白 */
+            @page {
+                size: A4 vertical;
+                margin: 15mm 12mm 12mm 12mm; /* 上下左右の余白設定 */
+            }
+
+            .print-area {
+                padding: 0;
+            }
+
+            .print-header {
+                margin-bottom: 15px !important;
+                padding-bottom: 10px !important;
+            }
+
+            .print-header h1 {
+                font-size: 24pt !important;
+                margin-bottom: 10px !important;
+            }
+
+            .name-box {
+                font-size: 16pt !important;
+                margin-bottom: 15px !important;
+            }
+
+            /* 印刷時は画面サイズに関わらず【絶対に3列】に固定 */
+            .problem {
+                width: 33.33% !important;
+                font-size: 18pt !important;
+                padding: 6px 4px !important; /* A4の縦に綺麗に17行(51問)収まるパディング */
+                border-bottom: none !important;
+                line-height: 1.4 !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+
+            .q-num {
+                width: 30px !important;
+                margin-right: 4px !important;
+            }
+
+            /* 印刷用の回答マスの大きさ調整 */
+            .answer-box {
+                width: 32px !important;
+                height: 32px !important;
+                border: 1.5px solid #000 !important; /* 印刷時にしっかり黒く映るように設定 */
+                margin-left: 8px !important;
+                border-radius: 2px !important;
+            }
+
+            .answer-box::before, .answer-box::after {
+                border-color: #aaa !important; /* 十字ガイドも薄いグレーでしっかり印刷されるように指定 */
+            }
+
+            /* 51問目の後に必ず改ページをいれて、2ページに完全に分割する */
+            .page-break {
+                page-break-before: always !important;
+                break-before: page !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 操作パネル（印刷時は非表示） -->
+    <div class="controls no-print">
+        <div class="control-row">
+            <label for="type-select">学習ステップ（難易度）：</label>
+            <select id="type-select" onchange="generateProblems()">
+                <!-- たしざんオプション -->
+                <option value="add_easy">たしざん ① (10までの けいさん / くりあがりなし)</option>
+                <option value="add_hard">たしざん ② (1けた＋1けた / くりあがりありのみ)</option>
+                <option value="add_all" selected>たしざん ③ (1けた＋1けた / すべての組み合わせ)</option>
+                <!-- ひきざんオプション -->
+                <option value="sub_easy">ひきざん ① (10までの けいさん / くりさがりなし)</option>
+                <option value="sub_hard">ひきざん ② (くりさがりありのみ / 10代からひく)</option>
+                <option value="sub_all">ひきざん ③ (1けた－1けた / すべての組み合わせ)</option>
+            </select>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="generateProblems()">問題をつくりなおす</button>
+            <button class="btn btn-success" onclick="window.print()">いんさつする / PDFにする</button>
+        </div>
+    </div>
+
+    <!-- 印刷エリア（ここがワークシートになります） -->
+    <div class="print-area">
+        <div class="print-header">
+            <h1 id="print-title">たしざんプリント</h1>
+            <div class="name-box">なまえ：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</div>
+        </div>
+
+        <div id="problems-container" class="problems-grid">
+            <!-- 100問がここに流し込まれます -->
+        </div>
+    </div>
+</div>
+
+<script>
+    function generateProblems() {
+        const type = document.getElementById('type-select').value;
+        const container = document.getElementById('problems-container');
+        const title = document.getElementById('print-title');
+        
+        // 選択されたタイプに応じてタイトルを最適化
+        let displayTitle = '';
+        switch(type) {
+            case 'add_easy': displayTitle = 'たしざんプリント（くりあがりなし）'; break;
+            case 'add_hard': displayTitle = 'たしざんプリント（くりあがりあり）'; break;
+            case 'add_all':  displayTitle = 'たしざんプリント（１けた ＋ １けた）'; break;
+            case 'sub_easy': displayTitle = 'ひきざんプリント（くりさがりなし）'; break;
+            case 'sub_hard': displayTitle = 'ひきざんプリント（くりさがりあり）'; break;
+            case 'sub_all':  displayTitle = 'ひきざんプリント（１けた ー １けた）'; break;
+        }
+        title.innerText = displayTitle;
+
+        let html = '';
+        
+        for (let i = 0; i < 100; i++) {
+            // 52問目（インデックス51）から2ページ目にするため、page-break クラスを付与
+            let pClass = (i === 51) ? 'problem page-break' : 'problem';
+            
+            let a, b, sign;
+            
+            if (type.startsWith('add')) {
+                sign = '＋';
+                if (type === 'add_easy') {
+                    // 答えが9以下になる足し算 (a + b <= 9)
+                    do {
+                        a = Math.floor(Math.random() * 8) + 1; // 1〜8
+                        b = Math.floor(Math.random() * (9 - a)) + 1; // 1〜(9-a)
+                    } while (a + b > 9);
+                } else if (type === 'add_hard') {
+                    // 必ず繰り上がりが発生する足し算 (a + b >= 10, a, b は1桁)
+                    do {
+                        a = Math.floor(Math.random() * 8) + 2; // 2〜9
+                        b = Math.floor(Math.random() * 8) + 2; // 2〜9
+                    } while (a + b < 10);
+                } else {
+                    // すべての1桁＋1桁の足し算 (1〜9)
+                    a = Math.floor(Math.random() * 9) + 1;
+                    b = Math.floor(Math.random() * 9) + 1;
+                }
+            } else {
+                sign = 'ー';
+                if (type === 'sub_easy') {
+                    // くり下がりなし (a <= 9, a - b >= 0)
+                    a = Math.floor(Math.random() * 9) + 1; // 1〜9
+                    b = Math.floor(Math.random() * a); // 0〜a (0もOK)
+                } else if (type === 'sub_hard') {
+                    // くり下がりあり (ひかれる数は11〜18、ひく数は1桁、答えは1桁)
+                    do {
+                        a = Math.floor(Math.random() * 8) + 11; // 11〜18
+                        b = Math.floor(Math.random() * 9) + 1;  // 1〜9
+                    } while (a - b >= 10 || a - b <= 0);
+                } else {
+                    // 1桁の引き算すべて
+                    if (Math.random() > 0.5) {
+                        // くり下がりなし
+                        a = Math.floor(Math.random() * 9) + 1;
+                        b = Math.floor(Math.random() * (a + 1));
+                    } else {
+                        // くり下がりあり
+                        do {
+                            a = Math.floor(Math.random() * 8) + 11;
+                            b = Math.floor(Math.random() * 9) + 1;
+                        } while (a - b >= 10 || a - b <= 0);
+                    }
+                }
+            }
+            
+            html += `
+                <div class="${pClass}">
+                    <span class="q-num">${i + 1})</span>
+                    <span>${a} ${sign} ${b} ＝</span>
+                    <span class="answer-box"></span>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+
+    // 初回ロード時に自動生成
+    window.onload = generateProblems;
+</script>
+
+</body>
+</html>
